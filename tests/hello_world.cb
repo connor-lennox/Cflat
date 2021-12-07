@@ -1,0 +1,10 @@
+myVar = 10;
+
+# This loop should run 3 times
+for i = 4 : myVar {
+    myVar = myVar - 1;
+}
+
+if myVar > 6 {
+    myVar = 0;
+}
