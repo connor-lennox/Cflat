@@ -1,13 +1,4 @@
-#[derive(PartialEq, Debug)]
-pub enum Token {
-    EOF,
-    IF,
-    FOR,
-    COMMENT,
-    IDENTIFIER(String),
-    NUMBER(f64),
-    CHARACTER(char)
-}
+use crate::token::Token;
 
 pub struct Lexer {
     input: Vec<char>,
@@ -61,11 +52,28 @@ impl Lexer {
                     None => return Token::EOF,
                 }
             }
-            return Token::COMMENT;
+            return Token::Comment;
         }
 
-        // If nothing else worked, just pass back the token
-        return Token::CHARACTER(last_char);
+        // Check the single-character tokens
+        match last_char {
+            ':' => Token::Colon,
+            ';' => Token::Semicolon,
+            '(' => Token::OpenParen,
+            ')' => Token::CloseParen,
+            '[' => Token::OpenBracket,
+            ']' => Token::CloseBracket,
+            '{' => Token::OpenBrace,
+            '}' => Token::CloseBrace,
+            '+' => Token::Plus,
+            '-' => Token::Minus,
+            '*' => Token::Times,
+            '/' => Token::Divide,
+            '=' => Token::Assignment,
+            '<' => Token::LessThan,
+            '>' => Token::GreaterThan,
+            _ => Token::Unknown
+        }
     }
 
     fn get_identifier(&mut self, starting_char: char) -> Token {
@@ -80,11 +88,12 @@ impl Lexer {
             self.progress();
             c = self.get_char();
 
-            if id.eq("if") { return Token::IF; }
-            if id.eq("for") { return Token::FOR; }
+            if id.eq("if") { return Token::If; }
+            if id.eq("for") { return Token::For; }
+            if id.eq("print") { return Token::Print; }
         }
 
-        return Token::IDENTIFIER(id);
+        return Token::Identifier(id);
     }
 
     fn get_number(&mut self, starting_char: char) -> Token {
@@ -99,7 +108,7 @@ impl Lexer {
             c = self.get_char();
         }
 
-        Token::NUMBER(num.parse::<f64>().unwrap())
+        Token::Number(num.parse::<f64>().unwrap())
     }
 
     fn get_char(&mut self) -> Option<char> {
