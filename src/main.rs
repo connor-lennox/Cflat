@@ -1,6 +1,9 @@
 use std::{fs::File, env, io::Read};
 
+use lexer::Token;
+
 mod lexer;
+mod parser;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -21,12 +24,20 @@ fn main() {
 
     let mut lexer = lexer::Lexer::new(char_buffer);
 
-    let mut tok: lexer::Token;
+    let mut tokens = Vec::<Token>::new();
 
     loop {
-        tok = lexer.get_token();
+        let tok = lexer.get_token();
         println!("{:?}", tok);
-
         if tok == lexer::Token::EOF { break; }
+        tokens.push(tok);
+    }
+
+    tokens = tokens.into_iter().filter(|tok| *tok != Token::COMMENT).collect::<Vec<_>>();
+
+    let mut tok_parser = parser::Parser::new(tokens);
+    
+    while !(tok_parser.finished()) {
+        println!("{:?}", tok_parser.parse());
     }
 }
