@@ -87,13 +87,17 @@ impl Lexer {
             id.push(next_char);
             self.progress();
             c = self.get_char();
-
-            if id.eq("if") { return Token::If; }
-            if id.eq("for") { return Token::For; }
-            if id.eq("print") { return Token::Print; }
         }
 
-        return Token::Identifier(id);
+        // Check keywords
+        match id.as_str() {
+            "true" => Token::True,
+            "false" => Token::False,
+            "if" => Token::If,
+            "for" => Token::For,
+            "print" => Token::Print,
+            _ => Token::Identifier(id)
+        }
     }
 
     fn get_number(&mut self, starting_char: char) -> Token {

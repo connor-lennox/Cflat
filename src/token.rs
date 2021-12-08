@@ -1,6 +1,8 @@
 #[derive(PartialEq, Debug, Clone)]
 pub enum Token {
     EOF,
+    True,
+    False,
     If,
     For,
     Print,

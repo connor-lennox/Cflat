@@ -1,4 +1,5 @@
 myVar = 10;
+forVar = 5;     # Check to ensure identifiers starting with keywords are fine
 
 # This loop should run 3 times
 for i = 4 : myVar {
