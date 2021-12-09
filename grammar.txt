@@ -1,0 +1,27 @@
+The grammar for the parser should look something like this:
+
+Program -> Statement
+
+Statement -> ExpressionStatement | IfStatement | ForStatement
+IfStatement -> "if" Expression "{" Statement "}"
+ForStatement -> "for" Variable "=" Expression ":" Expression "{" Statement "}"
+ExpressionStatement -> Expression ";"
+
+Expression -> Assignment
+Assignment -> Equality ("=" Equality)
+Equality -> Comparison (("!=" | "==") Comparison)*
+Comparison -> Term ((">" | ">=" | "<" | "<=") Term)*
+Term -> Factor(("-" | "+") Factor)*
+Factor -> Unary(("/" | "*") Unary)*
+Unary -> ("!" | "-") Unary | Primary
+Primary -> NUMBER | STRING | "true" | "false" | "(" Expression ")"
+
+
+////////////////////////
+Expression -> Term | BinExp
+BinExp -> Expression Operator Expression
+Term -> Number | Variable
+
+Number -> [0-9]*\.?[0-9]+
+Term -> [a-zA-Z][a-zA-Z0-9]*
+Operator -> any binary operator (+, -, *, /, ...)
