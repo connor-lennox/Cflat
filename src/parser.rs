@@ -1,12 +1,15 @@
-use crate::lexer::Token;
+use crate::token::Token;
 
 #[derive(Clone, Debug)]
 pub enum Expression {
-    NUMBER(f64),
-    VARIABLE(String),
-    BINARY(Box<Expression>, char, Box<Expression>),
-    FOR(String, Box<Expression>, Box<Expression>, Box<Expression>),
-    IF(Box<Expression>, Box<Expression>)
+    Number(f64),
+    Variable(String),
+    Boolean(bool),
+    Binary(Box<Expression>, Token, Box<Expression>),
+    Unary(Token, Box<Expression>),
+    Grouping(Box<Expression>),
+    For(String, Box<Expression>, Box<Expression>, Box<Expression>),
+    If(Box<Expression>, Box<Expression>)
 }
 
 
@@ -23,64 +26,151 @@ impl Parser {
 
     // Parse all top-level expressions in the input
     pub fn parse(&mut self) -> Expression {
-        if let Token::CHARACTER(';') = self.get_next() {
-            self.eat(); // Ignore top-level semicolons
+        self.parse_statement()
+    }
+
+    fn parse_statement(&mut self) -> Expression {
+        match self.get_next() {
+            Token::If => self.parse_if(),
+            Token::For => self.parse_for(),
+            _ => self.parse_expression_statement(),
         }
-        self.parse_expression()
+    }
+
+    fn parse_if(&mut self) -> Expression {
+        self.eat();     // Remove "if" token
+
+        let condition = self.parse_expression();    // Get conditional statement
+        assert!(self.consume_next() == &Token::OpenBrace, "missing open brace for if statement");
+        
+        let code = self.parse_statement();      // Get internals of if statement
+        assert!(self.consume_next() == &Token::CloseBrace, "missing close brace for if statement");
+        
+        Expression::If(Box::<Expression>::new(condition), Box::<Expression>::new(code))
+    }
+
+    fn parse_for(&mut self) -> Expression {
+        self.eat();     // Remove "for" token
+        
+        // Get the loop variable name
+        let loop_var: String;
+        if let Token::Identifier(v) = self.get_next() {
+            loop_var = v.to_string();
+            self.eat();
+        } else {
+            panic!("missing loop variable identifier");
+        }
+        assert!(self.consume_next() == &Token::Assignment, "missing assignment after for loop identifier");
+
+        // Starting value for loop variable
+        let start_expr: Expression = self.parse_expression();
+        assert!(self.consume_next() == &Token::Colon, "missing separator for for loop");
+        
+        // Ending value for loop variable
+        let end_expr: Expression = self.parse_expression();
+        assert!(self.consume_next() == &Token::OpenBrace, "missing open brace for for loop");
+        
+        // Body of loop: the code that executes
+        let body: Expression = self.parse_statement();
+        assert!(self.consume_next() == &Token::CloseBrace, "missing close brace for for loop");
+
+        Expression::For(loop_var, Box::<Expression>::new(start_expr), Box::<Expression>::new(end_expr), Box::<Expression>::new(body))
+    }
+
+    fn parse_expression_statement(&mut self) -> Expression {
+        let expr = self.parse_expression();
+        assert!(self.consume_next() == &Token::Semicolon, "missing semicolon on statement");
+        expr
     }
 
     fn parse_expression(&mut self) -> Expression {
-        let lhs = self.parse_primary();
-        self.parse_binary_op(1, lhs)
+        self.parse_assignment()
     }
 
-    // Parse a "primary" token: number, identifier, or opening parenthesis
+    fn parse_assignment(&mut self) -> Expression {
+        let mut expr = self.parse_equality();
+
+        if self.get_next() == &Token::Assignment {
+            let op = self.consume_next().clone();
+            let right = self.parse_equality();
+            expr = Expression::Binary(Box::new(expr), op, Box::new(right));
+        }
+
+        expr
+    }
+
+    fn parse_equality(&mut self) -> Expression {
+        let mut expr = self.parse_comparison();
+
+        while self.get_next() == &Token::NotEquals || self.get_next() == &Token::Equals {
+            let op = self.consume_next().clone();
+            let right = self.parse_comparison();
+            expr = Expression::Binary(Box::new(expr), op, Box::new(right));
+        }
+
+        expr
+    }
+
+    fn parse_comparison(&mut self) -> Expression {
+        let mut expr = self.parse_term();
+
+        while self.get_next() == &Token::GreaterThan || self.get_next() == &Token::LessThan ||
+                self.get_next() == &Token::GreaterEqual || self.get_next() == &Token::LessEqual {
+
+            let op = self.consume_next().clone();
+            let right = self.parse_term();
+            expr = Expression::Binary(Box::new(expr), op, Box::new(right));
+        }
+
+        expr
+    }
+
+    fn parse_term(&mut self) -> Expression {
+        let mut expr = self.parse_factor();
+
+        while self.get_next() == &Token::Plus || self.get_next() == &Token::Minus {
+            let op = self.consume_next().clone();
+            let right = self.parse_factor();
+            expr = Expression::Binary(Box::new(expr), op, Box::new(right));
+        }
+
+        expr
+    }
+
+    fn parse_factor(&mut self) -> Expression {
+        let mut expr = self.parse_unary();
+
+        while self.get_next() == &Token::Times || self.get_next() == &Token::Divide {
+            let op = self.consume_next().clone();
+            let right = self.parse_unary();
+            expr = Expression::Binary(Box::new(expr), op, Box::new(right));
+        }
+
+        expr
+    }
+
+    fn parse_unary(&mut self) -> Expression {
+        if self.get_next() == &Token::Not || self.get_next() == &Token::Minus {
+            let op = self.consume_next().clone();
+            let right = self.parse_unary();
+            return Expression::Unary(op, Box::new(right));
+        }
+
+        return self.parse_primary();
+    }
+
     fn parse_primary(&mut self) -> Expression {
-        let exp = match self.get_next() {
-            Token::IDENTIFIER(v) => Expression::VARIABLE(String::clone(v)), // No functions: all identifiers are going to be variables.
-            Token::NUMBER(d) => Expression::NUMBER(*d),
-            Token::CHARACTER('(') => self.parse_parens(),
-            Token::FOR => todo!("FOR primary token"),
-            Token::IF => todo!("IF primary token"),
-            _ => panic!("invalid primary token {:?}", self.get_next())
-        };
-
-        self.eat(); // Eat the identifier, number, or closing parenthesis
-        exp
-    }
-
-    fn parse_parens(&mut self) -> Expression {
-        self.eat();                                 // Remove left parenthesis
-        let lhs = self.parse_primary();   // Parse lhs of expression (might be only side)
-        self.parse_binary_op(1, lhs)                   // Return a binary op with the pre-parsed lhs
-    }
-
-    fn parse_binary_op(&mut self, prec: u8, lhs: Expression) -> Expression {
-        let mut comb = lhs;
-        loop {
-            // Get the precedence of the operation for this binary op
-            let tok_prec = self.get_next_prec();
-
-            if tok_prec < prec {
-                return comb
+        match self.consume_next() {
+            &Token::False => Expression::Boolean(false),
+            &Token::True => Expression::Boolean(true),
+            &Token::Number(v) => Expression::Number(v),
+            Token::Identifier(v) => Expression::Variable(v.clone()),
+            &Token::OpenParen => {
+                let expr = self.parse_expression();
+                self.eat();
+                Expression::Grouping(Box::new(expr))
             }
-
-            let op: char;
-            if let Token::CHARACTER(c) = self.get_next() {
-                op = *c;
-            } else {
-                panic!("binary operation missing operator");
-            }
-
-            self.eat();     // Consume the operator
-            let mut rhs = self.parse_primary();     // Get the rhs of the operator
-
-            let next_prec = self.get_next_prec();     // Check to see if we forfeit this rhs to the next expression
-            if tok_prec < next_prec {
-                rhs = self.parse_binary_op(tok_prec + 1, rhs);
-            }
-
-            comb = Expression::BINARY(Box::<Expression>::new(comb), op, Box::<Expression>::new(rhs))
+            _ => panic!("invalid primary token type")
         }
     }
 
@@ -89,12 +179,9 @@ impl Parser {
         &self.input[self.idx]
     }
 
-    // Get the precedence of the next token
-    fn get_next_prec(&self) -> u8 {
-        match self.get_next() {
-            Token::CHARACTER(c) => token_precedence(*c),
-            _ => 0
-        }
+    fn consume_next(&mut self) -> &Token {
+        self.idx += 1;
+        &self.input[self.idx - 1]
     }
 
     // Eats a token, moving the pointer forward
@@ -105,17 +192,6 @@ impl Parser {
     }
 
     pub fn finished(&self) -> bool {
-        self.idx == self.input.len()
-    }
-}
-
-fn token_precedence(token: char) -> u8 {
-    match token {
-        '<' => 10,
-        '+' => 20,
-        '-' => 20,
-        '*' => 40,
-        '=' => 50,
-        _ => 0
+        self.get_next() == &Token::EOF
     }
 }

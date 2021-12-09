@@ -1,7 +1,8 @@
 use std::{fs::File, env, io::Read};
 
-use lexer::Token;
+use token::Token;
 
+mod token;
 mod lexer;
 mod parser;
 
@@ -29,11 +30,12 @@ fn main() {
     loop {
         let tok = lexer.get_token();
         println!("{:?}", tok);
-        if tok == lexer::Token::EOF { break; }
+        let done = tok == Token::EOF;
         tokens.push(tok);
+        if done { break; }
     }
 
-    tokens = tokens.into_iter().filter(|tok| *tok != Token::COMMENT).collect::<Vec<_>>();
+    tokens = tokens.into_iter().filter(|tok| *tok != Token::Comment).collect::<Vec<_>>();
 
     let mut tok_parser = parser::Parser::new(tokens);
     
