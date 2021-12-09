@@ -55,25 +55,7 @@ impl Lexer {
             return Token::Comment;
         }
 
-        // Check the single-character tokens
-        match last_char {
-            ':' => Token::Colon,
-            ';' => Token::Semicolon,
-            '(' => Token::OpenParen,
-            ')' => Token::CloseParen,
-            '[' => Token::OpenBracket,
-            ']' => Token::CloseBracket,
-            '{' => Token::OpenBrace,
-            '}' => Token::CloseBrace,
-            '+' => Token::Plus,
-            '-' => Token::Minus,
-            '*' => Token::Times,
-            '/' => Token::Divide,
-            '=' => Token::Assignment,
-            '<' => Token::LessThan,
-            '>' => Token::GreaterThan,
-            _ => Token::Unknown
-        }
+        return self.get_operator(last_char);
     }
 
     fn get_identifier(&mut self, starting_char: char) -> Token {
@@ -113,6 +95,44 @@ impl Lexer {
         }
 
         Token::Number(num.parse::<f64>().unwrap())
+    }
+
+    fn get_operator(&mut self, starting_char: char) -> Token {
+        let mut op = String::from(starting_char);
+        let mut c = self.get_char();
+
+        while let Some(next_char) = c {
+            if next_char.is_whitespace() { break; }
+            op.push(next_char);
+            self.progress();
+            c = self.get_char();
+        }
+
+        match op.as_str() {
+            "." => Token::Dot,
+            "," => Token::Comma,
+            ":" => Token::Colon,
+            ";" => Token::Semicolon,
+            "(" => Token::OpenParen,
+            ")" => Token::CloseParen,
+            "[" => Token::OpenBracket,
+            "]" => Token::CloseBracket,
+            "{" => Token::OpenBrace,
+            "}" => Token::CloseBrace,
+            "+" => Token::Plus,
+            "-" => Token::Minus,
+            "*" => Token::Times,
+            "/" => Token::Divide,
+            "=" => Token::Assignment,
+            "==" => Token::Equals,
+            "!=" => Token::NotEquals,
+            "!" => Token::Not,
+            "<" => Token::LessThan,
+            ">" => Token::GreaterThan,
+            "<=" => Token::LessEqual,
+            ">=" => Token::GreaterEqual,
+            _ => Token::Unknown
+        }
     }
 
     fn get_char(&mut self) -> Option<char> {

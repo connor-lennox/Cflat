@@ -7,6 +7,8 @@ pub enum Token {
     For,
     Print,
     Comment,
+    Dot,                    // .
+    Comma,                  // ,
     Colon,                  // :
     Semicolon,              // ;
     OpenParen,              // (
@@ -20,8 +22,13 @@ pub enum Token {
     Times,                  // *
     Divide,                 // /
     Assignment,             // =
+    Equals,                 // ==
+    NotEquals,              // !=
+    Not,                    // !
     LessThan,               // <
     GreaterThan,            // >
+    LessEqual,              // <=
+    GreaterEqual,           // >=
     Identifier(String),
     Number(f64),
     Unknown
